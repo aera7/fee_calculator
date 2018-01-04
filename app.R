@@ -1,0 +1,363 @@
+library(shiny)
+#rm(list=ls())
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+  
+  # Application title
+  titlePanel("FEES CALCULATOR"),
+  
+  # Sidebar with a slider input for number of bins 
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("c_meth1", "Calculation method:",
+                  c("1. ABS. Outperformance" = "abs_perf",
+                    "2. ABS. Outperformance (GAIN)" = "gain",
+                    "3. ABS. Outperformance and High Water Mark" = "abs_perf_hwm",
+                    "4. ABS. Outperformance and Water Mark" = "abs_perf_wm",
+                    "5. Benchmark" = "bm",
+                    "6. Benchmark and High Water Mark" = "bm_hwm",
+                    "7. Benchmark and Water Mark" = "bm_wm",
+                    "8. Hurdle Rate" = "hr",
+                    "9. Hurdle Rate and High Water Mark" = "hr_hwm",
+                    "10. Hurdle Rate and Water Mark" = "hr_wm"),
+                  selected = "abs_perf"
+      ),
+      selectInput("c_meth2", "Calculation method:",
+                  c("1. ABS. Outperformance" = "abs_perf",
+                    "2. ABS. Outperformance (GAIN)" = "gain",
+                    "3. ABS. Outperformance and High Water Mark" = "abs_perf_hwm",
+                    "4. ABS. Outperformance and Water Mark" = "abs_perf_wm",
+                    "5. Benchmark" = "bm",
+                    "6. Benchmark and High Water Mark" = "bm_hwm",
+                    "7. Benchmark and Water Mark" = "bm_wm",
+                    "8. Hurdle Rate" = "hr",
+                    "9. Hurdle Rate and High Water Mark" = "hr_hwm",
+                    "10. Hurdle Rate and Water Mark" = "hr_wm"),
+                  selected = "gain"
+      ),
+      sliderInput("periods",
+                  "Number of periods:",
+                  min = 1,
+                  max = 20,
+                  value = 10),
+      sliderInput("tariff_1",
+                  "Tariff 1:",
+                  min = 1,
+                  max = 50,
+                  value = 5),
+      sliderInput("tariff_2",
+                  "Tariff 2:",
+                  min = 1,
+                  max = 50,
+                  value = 5),
+      sliderInput("riskfree",
+                  "Market trend:",
+                  min = 1,
+                  max = 10,
+                  value = 3),
+      sliderInput("var_market",
+                  "Varianz Market returns:",
+                  min = 1,
+                  max = 10,
+                  value = 7),
+      sliderInput("var_port",
+                  "Varianz Portfolio returns :",
+                  min = 1,
+                  max = 20,
+                  value = 12,
+                  step = 0.5),
+      sliderInput("hurdle_rate",
+                  "Hurdle rate:",
+                  min = 1,
+                  max = 10,
+                  value = 3),
+      checkboxInput("trendline", "Show trend line", FALSE)
+      # checkboxInput("chk_hurdle", "Use Hurdle rate", FALSE),
+      # selectInput("state", "Calculation method:",
+      #             list("available possibilities" , c("1", "2", "3")
+      #                  )
+      # )
+      
+      
+    ),
+    
+    # Show a plot of the generated distribution
+    mainPanel(
+      plotOutput("distPlot")
+  )
+)
+)
+
+simulator <- function(periods = 10,
+                      trf = 0.05,
+                      trf2 = 0.05,
+                      riskfree=3,
+                      bm_std=0.03,
+                      port_std=25,
+                      hurd_rate = -1,
+                      # typus1 ="abs_perf", 
+                      typus1, 
+                      # typus2="gain",
+                      typus2) {
+  ######## variable list ########
+  ror = rnorm(periods, mean = riskfree, sd = port_std)/100
+  per <- c(1:periods)
+  sop_val <- c(100)
+  eop_val <- c()
+  bm_sop_val <- c(100)
+  bm_eop_val <- c()
+  tariff1 <- numeric(periods)
+  tariff2 <- numeric(periods)
+  # hurd_ror <-rep(hurd_rate/100,periods)
+  bm_ror <- rnorm(periods, mean = riskfree, sd = bm_std)/100
+  wm=100
+  hwm = 100
+  # print(bm_ror)
+  # print(ror)
+  ######## end variable list ########
+  # current assumption => no cashflow so TWRR and MWRR are the same
+  # print(typus1)
+  # print(typus2)
+  for (i in 1:periods){
+    if(i!=1) sop_val = c(sop_val,tail(eop_val, n=1))
+    eop_val = c(eop_val,tail(sop_val, n=1)*(1+ror[i])) 
+    if (typus1 == "abs_perf" | typus2 == "abs_perf"){ #gain
+      if(ror[i]>0 & eop_val[i]>100){
+        if(typus1 == "abs_perf"){
+          tariff1[i]=((eop_val[i]-100)* trf / 100)
+        }else{
+          tariff2[i]=((eop_val[i]-100)* trf2 / 100)
+          # tariff1[i]=(sop_val[i] * ror[i] * trf / 100)
+          # }else{
+          # tariff2[i]=(sop_val[i] * ror[i] * trf / 100)
+        }
+        #AIC * ROR * TRF
+      }
+    }
+    if(typus1 == "gain" | typus2 == "gain"){#abs outperf
+      if(ror[i]>0){
+        if(eop_val[i] > sop_val[i]){
+          if(typus1 == "gain"){
+            tariff1[i]=(eop_val[i]-sop_val[i]) * trf / 100
+          }else{
+            tariff2[i]=(eop_val[i]-sop_val[i]) * trf2 / 100
+          }  
+          # GAIN * TRF;
+        }
+      }
+    }
+    if(typus1 == "abs_perf_hwm" | typus2 == "abs_perf_hwm"){#abs outperf
+      if(ror[i]>0 & eop_val[i] > hwm){
+        if(typus1 == "abs_perf_hwm"){
+          tariff1[i]=(eop_val[i]-hwm) * trf / 100
+        }else{
+          tariff2[i]=(eop_val[i]-hwm) * trf2 / 100
+        }
+        hwm=eop_val[i]
+        # (VAL_EOP - HWM) * TRF;
+      }
+    }
+    
+    if(typus1 == "abs_perf_wm" | typus2 == "abs_perf_wm"){#abs outperf
+      if(ror[i]>0 & eop_val[i] > wm ){
+        if(typus1 == "abs_perf_wm"){
+          tariff1[i]=(eop_val[i]-wm) * trf / 100
+        }else{
+          tariff2[i]=(eop_val[i]-wm) * trf2 / 100
+        }
+        # ret_val := (VAL_EOP - WM) * TRF;
+      }
+    }
+    if(typus1 == "bm" | typus2 == "bm"){#bench mark // hurdle rate
+      if(ror[i]>bm_ror[i]){
+        if(typus1 == "bm" | typus1 == "hr"){
+          tariff1[i]=(ror[i]-bm_ror[i]) * trf / 100
+        }
+        if(typus2 == "bm" | typus2 == "hr"){
+          tariff2[i]=(ror[i]-bm_ror[i]) * trf2 / 100
+        }
+        #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
+      }
+    }
+    
+    if(typus1 == "hr" | typus2 == "hr"){#bench mark // hurdle rate
+      if(ror[i]>hurd_rate){
+        if(typus1 == "hr"){
+          tariff1[i]=(ror[i]-hurd_rate) * trf / 100
+        }
+        if(typus2 == "hr"){
+          tariff2[i]=(ror[i]-hurd_rate) * trf2 / 100
+        }
+        #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
+      }
+    }
+    
+    if(typus1 == "bm_hwm" | typus2 == "bm_hwm" ){#bench mark with high water mark // hurdle rate with high water mark
+      if(ror[i]>bm_ror[i] & eop_val[i] > hwm ){
+        if(typus1 == "bm_hwm"){
+          tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf / 100
+        }
+        if(typus2 == "bm_hwm" ){
+          tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf2 / 100
+        }
+        hmw = eop_val
+        #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
+      }
+    }
+    
+    if(typus1 == "hr_hwm" | typus2 == "hr_hwm"){#bench mark with high water mark // hurdle rate with high water mark
+      if(ror[i]>hurd_rate & eop_val[i] > hwm ){
+        if(typus1 == "hr_hwm"){
+          tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf / 100
+        }
+        if(typus2 == "hr_hwm"){
+          tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf2 / 100
+        }
+        hmw = eop_val
+        #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
+      }
+    }
+    
+    if(typus1 == "bm_wm" | typus2 == "bm_wm"){#abs outperf
+      if(ror[i]>bm_ror[i] & eop_val[i] > wm ){
+        if(typus1 == "bm_wm"){
+          tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf / 100
+        }
+        if(typus2 == "bm_wm"){
+          tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf2 / 100
+        }
+        # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
+      }
+    }
+    
+    if( typus1 == "hr_wm" | typus2 == "hr_wm"){#abs outperf
+      if(ror[i]>hurd_rate & eop_val[i] > wm ){
+        if(typus1 == "hr_wm"){
+          tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf / 100
+        }
+        if(typus2 == "hr_wm"){
+          tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf2 / 100
+        }
+        # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
+      }
+    }
+  }
+  
+  #print(data.frame(per,sop_val,eop_val,ror,tariff))
+  return(data.frame(per,sop_val,eop_val,ror,tariff1,tariff2))
+}
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  
+  output$distPlot <- renderPlot({
+    # generate bins based on input$bins from ui.R
+    x    <- faithful[, 2] 
+    bins <- seq(min(x), max(x), length.out = input$periods + 1)
+    n_of_sim = 100
+    p_ret <- c(1:n_of_sim)
+    tar1 <- c(1:n_of_sim)
+    tar2 <- c(1:n_of_sim)
+    for (i in 1:n_of_sim){
+      
+      m= simulator(periods = input$periods,
+                   trf = input$tariff_1/100,
+                   trf2 = input$tariff_2/100,
+                   riskfree = input$riskfree,
+                   bm_std = input$var_market,
+                   port_std = input$var_port,
+                   hurd_rate =input$hurdle_rate/100,
+                   typus1=input$c_meth1,
+                   typus2=input$c_meth2
+      )
+      
+      # m = simulator(input$periods,1,"a", "b", input$tariff/100)
+      
+      tar1[i] = sum(m$tariff1)
+      tar2[i] = sum(m$tariff2)
+      p_ret[i] = (tail(m$eop,n=1)-100)/100
+      #print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
+      #print("a---------------")
+      #s = simulator(input$periods,1,'b')
+      # print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
+      # print("b---------------")
+    }
+    # draw the histogram with the specified number of bins
+    #hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    print(data.frame(p_ret,tar1, tar2))
+    print(max(tar1,tar2))
+    
+    plot(p_ret,tar1,type="p", pch= 20 ,col="red",ylim=c(0,max(tar1,tar2)+0.02), xlab="Portfolio Retruns", ylab="Commissions",  main = "The difference in fee calculations methods")
+    # plot(p_ret,tar2,type="p",col="red",ylim=c(0,.5), xlab="Portfolio Retruns", ylab="Comissions")
+    points(p_ret,tar2,col="green", pch= 20) # cex =2
+    # legend(min(p_ret),max(tar1,tar2), c(input$c_meth2, input$c_meth2), col = c("green","red"),
+    #        text.col = "green4", lty = c(2, -1), pch = c(NA, 3, 4),
+    #        merge = TRUE, bg = "gray90")
+    fit <- lm(tar1~p_ret)
+    fit2 <- lm(tar2~p_ret)
+    if(input$trendline){
+      lines(p_ret, fitted(fit), col="red")
+      lines(p_ret, fitted(fit2), col="green")
+    }
+    legend("topleft", c(input$c_meth1, input$c_meth2), col = c("red","green"),pch = 1,
+           inset = .01, merge = TRUE, bg = "gray90")
+    
+    # # use Oregon climate-station data [orstationc.csv]
+    # opar <- par(mar=c(5,4,4,5)+0.1) # space for second axis
+    # plot(p_ret, tar1)    # first plot
+    # par(new=T)          # second plot is going to get added to first
+    # plot(p_ret, tar2, pch=3, axes=F, ylab="")  # don't overwrite
+    # axis(side=4)   # add axis
+    
+    
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+##########################################################################
+######################### ADDITIONAL INFORMATION #########################
+##########################################################################
+
+#     ' If cal_me = "1. ABS. Outperformance" Then
+# '      If ROR > 0 Then
+#     '        ret_val := AIC * ROR * TRF;
+#     '      End If
+#     
+#     '    ElseIf cal_me = "3. ABS. Outperformance and High Water Mark" Then
+#     '      If ROR > 0 And VAL_EOP > HWM Then
+#     '        ret_val := (VAL_EOP - HWM) * TRF;
+#     '      End If
+#     
+#     '    ElseIf cal_me = "4. ABS. Outperformance and Water Mark" Then
+#     '      If ROR > 0 And VAL_EOP > WM Then
+#     '        ret_val := (VAL_EOP - WM) * TRF;
+#     '      End If
+#     
+#     '    ElseIf cal_me = "2. ABS. Outperformance (GAIN)" Then
+#     '      If GAIN > 0 Then
+#     '        ret_val := GAIN * TRF;
+#     '      End If
+#     '
+#     '    ElseIf cal_me = "5. Benchmark" Or cal_me = "8. Hurdle Rate" Then
+#     '      If ROR > L_BMRK_ROR_MARKUP Then
+#     '        L_RET_VAL := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
+#     '      End If
+#     '
+#     '    ElseIf cal_me = "6. Benchmark and High Water Mark" Or "9. Hurdle Rate and High Water Mark" Then
+#     '      If ROR > L_BMRK_ROR_MARKUP And VAL_EOP > HWM Then
+#     '        L_RET_VAL := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
+#     '      End If
+#     
+#     '    ELSeIF CALC_MTD_ID = "7. Benchmark and Water Mark" or "10. Hurdle Rate and Water Mark")
+# '    THEN
+# '      If ROR > L_BMRK_ROR_MARKUP And VAL_EOP > WM Then
+# '        L_RET_VAL := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
+# '      END IF;
+
+
+##########################################################################
+##################### ADDITIONAL INFORMATION END #########################
+##########################################################################
