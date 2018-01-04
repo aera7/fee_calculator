@@ -85,10 +85,46 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("distPlot")
+      plotOutput("distPlot"),
+      fluidRow(
+        column(width = 6,
+               h4("Points near click"),
+               verbatimTextOutput("click_info")
+        ),
+        column(width = 6,
+               h4("Brushed points"),
+               verbatimTextOutput("brush_info")
+        ))
+      
   )
 )
 )
+
+
+# ui <- fluidPage(
+#   fluidRow(
+#     column(width = 4,
+#            plotOutput("plot1", height = 300,
+#                       # Equivalent to: click = clickOpts(id = "plot_click")
+#                       click = "plot1_click",
+#                       brush = brushOpts(
+#                         id = "plot1_brush"
+#                       )
+#            )
+#     )
+#   ),
+#   fluidRow(
+#     column(width = 6,
+#            h4("Points near click"),
+#            verbatimTextOutput("click_info")
+#     ),
+#     column(width = 6,
+#            h4("Brushed points"),
+#            verbatimTextOutput("brush_info")
+#     )
+#   )
+# )
+
 
 simulator <- function(periods = 10,
                       trf = 0.05,
