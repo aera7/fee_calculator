@@ -80,72 +80,22 @@ ui <- fluidPage(
       #                  )
       # )
       
-      
     ),
-    
-    # Show a plot of the generated distribution
-    mainPanel(
+      mainPanel(
       plotOutput("distPlot")
+    )
   )
 )
-)
 
-simulator <- function(periods = 10,
-                      trf = 0.05,
-                      trf2 = 0.05,
-                      riskfree=3,
-                      bm_std=0.03,
-                      port_std=25,
-                      hurd_rate = -1,
-                      # typus1 ="abs_perf", 
-                      typus1, 
-                      # typus2="gain",
-                      typus2) {
-  ######## variable list ########
-  ror = rnorm(periods, mean = riskfree, sd = port_std)/100
-  per <- c(1:periods)
-  sop_val <- c(100)
-  eop_val <- c()
-  bm_sop_val <- c(100)
-  bm_eop_val <- c()
-  tariff1 <- numeric(periods)
-  tariff2 <- numeric(periods)
-  # hurd_ror <-rep(hurd_rate/100,periods)
-  bm_ror <- rnorm(periods, mean = riskfree, sd = bm_std)/100
-  wm=100
-  hwm = 100
-  # print(bm_ror)
-  # print(ror)
-  ######## end variable list ########
-  # current assumption => no cashflow so TWRR and MWRR are the same
-  # print(typus1)
-  # print(typus2)
-  for (i in 1:periods){
-    print(paste("lap: ",i, "out of ", periods))
-    if(i!=1) sop_val = c(sop_val,tail(eop_val, n=1))
-    eop_val = c(eop_val,tail(sop_val, n=1)*(1+ror[i]))
-    tariff1[i]=fee_val(type=typus1,ror=ror,bm_ror=bm_ror,
-                       eop_val=eop_val, sop_val=sop_val, i=i,
-                       trf=trf, hurd_rate=hurd_rate,hwm=hwm,wm=wm)
-    tariff2[i]=fee_val(type=typus2,ror=ror,bm_ror=bm_ror,
-                       eop_val=eop_val, sop_val=sop_val, i=i,
-                       trf=trf2, hurd_rate=hurd_rate,hwm=hwm,wm=wm)
-  }
-  #print(data.frame(per,sop_val,eop_val,ror,tariff))
-  return(data.frame(per,sop_val,eop_val,ror,tariff1,tariff2))
-}
-# Define server logic required to draw a histogram
 server <- function(input, output) {
-  # print(my_first_func(2,3));
   output$distPlot <- renderPlot({
-    # generate bins based on input$bins from ui.R
     x    <- faithful[, 2] 
     bins <- seq(min(x), max(x), length.out = input$periods + 1)
-    n_of_sim = 100
-    p_ret <- c(1:n_of_sim)
-    tar1 <- c(1:n_of_sim)
-    tar2 <- c(1:n_of_sim)
-    for (i in 1:n_of_sim){
+    n_of_sim = 100 # number of points in the grafik * 2
+    p_ret <- c(1:n_of_sim) # portfolio retun array
+    tar1 <- c(1:n_of_sim)  # tariff 1 array
+    tar2 <- c(1:n_of_sim)  # tariff 2 array 
+    for (i in 1:n_of_sim){ 
       
       m= simulator(periods = input$periods,
                    trf = input$tariff_1/100,
@@ -157,23 +107,15 @@ server <- function(input, output) {
                    typus1=input$c_meth1,
                    typus2=input$c_meth2
       )
-      # m = simulator(input$periods,1,"a", "b", input$tariff/100)
       tar1[i] = sum(m$tariff1)
       tar2[i] = sum(m$tariff2)
-      p_ret[i] = (tail(m$eop,n=1)-100)/100
-      #print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
-      #print("a---------------")
-      #s = simulator(input$periods,1,'b')
-      # print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
-      # print("b---------------")
+      p_ret[i] = ((tail(m$eop,n=1)-100)/100)
     }
-    # draw the histogram with the specified number of bins
-    #hist(x, breaks = bins, col = 'darkgray', border = 'white')
-    print(data.frame(p_ret,tar1, tar2))
-    print(max(tar1,tar2))
+    # print(data.frame(p_ret,tar1, tar2)) to check the tariffs and portfolio values
+    # print(max(tar1,tar2)) to check the maximum
     
+    # start to plot the actual image
     plot(p_ret,tar1,type="p", pch= 20 ,col="red",ylim=c(0,max(tar1,tar2)+0.02), xlab="Portfolio Retruns", ylab="Commissions",  main = "The difference in fee calculations methods")
-    # plot(p_ret,tar2,type="p",col="red",ylim=c(0,.5), xlab="Portfolio Retruns", ylab="Comissions")
     points(p_ret,tar2,col="green", pch= 20) # cex =2
     # legend(min(p_ret),max(tar1,tar2), c(input$c_meth2, input$c_meth2), col = c("green","red"),
     #        text.col = "green4", lty = c(2, -1), pch = c(NA, 3, 4),
@@ -186,15 +128,6 @@ server <- function(input, output) {
     }
     legend("topleft", c(input$c_meth1, input$c_meth2), col = c("red","green"),pch = 1,
            inset = .01, merge = TRUE, bg = "gray90")
-    
-    # # use Oregon climate-station data [orstationc.csv]
-    # opar <- par(mar=c(5,4,4,5)+0.1) # space for second axis
-    # plot(p_ret, tar1)    # first plot
-    # par(new=T)          # second plot is going to get added to first
-    # plot(p_ret, tar2, pch=3, axes=F, ylab="")  # don't overwrite
-    # axis(side=4)   # add axis
-    
-    
   })
 }
 # Run the application 
