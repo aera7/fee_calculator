@@ -1,4 +1,5 @@
 library(shiny)
+library(ggplot2)
 source("functions_doc.R")
 #rm(list=ls())
 
@@ -87,6 +88,17 @@ ui <- fluidPage(
     mainPanel(
       plotOutput("distPlot"),
       fluidRow(
+        column(width = 8,
+               plotOutput("plot1", height = 300,
+                          # Equivalent to: click = clickOpts(id = "plot_click")
+                          click = "plot1_click",
+                          brush = brushOpts(
+                            id = "plot1_brush"
+                          )
+               )
+        )
+      ),
+      fluidRow(
         column(width = 6,
                h4("Points near click"),
                verbatimTextOutput("click_info")
@@ -173,7 +185,14 @@ simulator <- function(periods = 10,
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   # print(my_first_func(2,3));
-  output$distPlot <- renderPlot({
+  
+  
+  
+  
+  
+  
+  
+  output$plot1 <- renderPlot({
     # generate bins based on input$bins from ui.R
     x    <- faithful[, 2] 
     bins <- seq(min(x), max(x), length.out = input$periods + 1)
@@ -232,6 +251,79 @@ server <- function(input, output) {
     
     
   })
+  
+  output$distPlot <- renderPlot({
+    # generate bins based on input$bins from ui.R
+    x    <- faithful[, 2] 
+    bins <- seq(min(x), max(x), length.out = input$periods + 1)
+    n_of_sim = 100
+    p_ret <- c(1:n_of_sim)
+    tar1 <- c(1:n_of_sim)
+    tar2 <- c(1:n_of_sim)
+    for (i in 1:n_of_sim){
+      
+      m= simulator(periods = input$periods,
+                   trf = input$tariff_1/100,
+                   trf2 = input$tariff_2/100,
+                   riskfree = input$riskfree,
+                   bm_std = input$var_market,
+                   port_std = input$var_port,
+                   hurd_rate =input$hurdle_rate/100,
+                   typus1=input$c_meth1,
+                   typus2=input$c_meth2
+      )
+      # m = simulator(input$periods,1,"a", "b", input$tariff/100)
+      tar1[i] = sum(m$tariff1)
+      tar2[i] = sum(m$tariff2)
+      p_ret[i] = (tail(m$eop,n=1)-100)/100
+      #print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
+      #print("a---------------")
+      #s = simulator(input$periods,1,'b')
+      # print(c((tail(m$eop,n=1)-100)/100,sum(m$ror), sum(m$tariff), (sum(m$tariff)/((tail(m$eop,n=1)-100)/100 ))))
+      # print("b---------------")
+    }
+    # draw the histogram with the specified number of bins
+    #hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    print(data.frame(p_ret,tar1, tar2))
+    print(max(tar1,tar2))
+    plot(p_ret,tar1,type="p", pch= 20 ,col="red",ylim=c(0,max(tar1,tar2)+0.02), xlab="Portfolio Retruns", ylab="Commissions",  main = "The difference in fee calculations methods")
+    # plot(p_ret,tar2,type="p",col="red",ylim=c(0,.5), xlab="Portfolio Retruns", ylab="Comissions")
+    points(p_ret,tar2,col="green", pch= 20) # cex =2
+    # legend(min(p_ret),max(tar1,tar2), c(input$c_meth2, input$c_meth2), col = c("green","red"),
+    #        text.col = "green4", lty = c(2, -1), pch = c(NA, 3, 4),
+    #        merge = TRUE, bg = "gray90")
+    fit <- lm(tar1~p_ret)
+    fit2 <- lm(tar2~p_ret)
+    if(input$trendline){
+      lines(p_ret, fitted(fit), col="red")
+      lines(p_ret, fitted(fit2), col="green")
+    }
+    legend("topleft", c(input$c_meth1, input$c_meth2), col = c("red","green"),pch = 1,
+           inset = .01, merge = TRUE, bg = "gray90")
+    
+    # # use Oregon climate-station data [orstationc.csv]
+    # opar <- par(mar=c(5,4,4,5)+0.1) # space for second axis
+    # plot(p_ret, tar1)    # first plot
+    # par(new=T)          # second plot is going to get added to first
+    # plot(p_ret, tar2, pch=3, axes=F, ylab="")  # don't overwrite
+    # axis(side=4)   # add axis
+    
+    
+  })
+  
+  output$click_info <- renderPrint({
+    # Because it's a ggplot2, we don't need to supply xvar or yvar; if this
+    # were a base graphics plot, we'd need those.
+    nearPoints(mtcars2, input$plot1_click, addDist = TRUE)
+  })
+  
+  output$brush_info <- renderPrint({
+    brushedPoints(mtcars2, input$plot1_brush)
+  })
+  
+  
+  
+  
 }
 # Run the application 
 shinyApp(ui = ui, server = server)
