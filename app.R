@@ -1,4 +1,5 @@
 library(shiny)
+source("functions_doc.R")
 #rm(list=ls())
 
 # Define UI for application that draws a histogram
@@ -120,128 +121,144 @@ simulator <- function(periods = 10,
   # print(typus1)
   # print(typus2)
   for (i in 1:periods){
+    print(paste("lap: ",i, "out of ", periods))
     if(i!=1) sop_val = c(sop_val,tail(eop_val, n=1))
-    eop_val = c(eop_val,tail(sop_val, n=1)*(1+ror[i])) 
-    if (typus1 == "abs_perf" | typus2 == "abs_perf"){ #gain
-      if(ror[i]>0 & eop_val[i]>100){
-        if(typus1 == "abs_perf"){
-          tariff1[i]=((eop_val[i]-100)* trf / 100)
-        }else{
-          tariff2[i]=((eop_val[i]-100)* trf2 / 100)
-          # tariff1[i]=(sop_val[i] * ror[i] * trf / 100)
-          # }else{
-          # tariff2[i]=(sop_val[i] * ror[i] * trf / 100)
-        }
-        #AIC * ROR * TRF
-      }
-    }
-    if(typus1 == "gain" | typus2 == "gain"){#abs outperf
-      if(ror[i]>0){
-        if(eop_val[i] > sop_val[i]){
-          if(typus1 == "gain"){
-            tariff1[i]=(eop_val[i]-sop_val[i]) * trf / 100
-          }else{
-            tariff2[i]=(eop_val[i]-sop_val[i]) * trf2 / 100
-          }  
-          # GAIN * TRF;
-        }
-      }
-    }
-    if(typus1 == "abs_perf_hwm" | typus2 == "abs_perf_hwm"){#abs outperf
-      if(ror[i]>0 & eop_val[i] > hwm){
-        if(typus1 == "abs_perf_hwm"){
-          tariff1[i]=(eop_val[i]-hwm) * trf / 100
-        }else{
-          tariff2[i]=(eop_val[i]-hwm) * trf2 / 100
-        }
-        hwm=eop_val[i]
-        # (VAL_EOP - HWM) * TRF;
-      }
-    }
+    eop_val = c(eop_val,tail(sop_val, n=1)*(1+ror[i]))
     
-    if(typus1 == "abs_perf_wm" | typus2 == "abs_perf_wm"){#abs outperf
-      if(ror[i]>0 & eop_val[i] > wm ){
-        if(typus1 == "abs_perf_wm"){
-          tariff1[i]=(eop_val[i]-wm) * trf / 100
-        }else{
-          tariff2[i]=(eop_val[i]-wm) * trf2 / 100
-        }
-        # ret_val := (VAL_EOP - WM) * TRF;
-      }
-    }
-    if(typus1 == "bm" | typus2 == "bm"){#bench mark // hurdle rate
-      if(ror[i]>bm_ror[i]){
-        if(typus1 == "bm" | typus1 == "hr"){
-          tariff1[i]=(ror[i]-bm_ror[i]) * trf / 100
-        }
-        if(typus2 == "bm" | typus2 == "hr"){
-          tariff2[i]=(ror[i]-bm_ror[i]) * trf2 / 100
-        }
-        #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
-      }
-    }
     
-    if(typus1 == "hr" | typus2 == "hr"){#bench mark // hurdle rate
-      if(ror[i]>hurd_rate){
-        if(typus1 == "hr"){
-          tariff1[i]=(ror[i]-hurd_rate) * trf / 100
-        }
-        if(typus2 == "hr"){
-          tariff2[i]=(ror[i]-hurd_rate) * trf2 / 100
-        }
-        #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
-      }
-    }
     
-    if(typus1 == "bm_hwm" | typus2 == "bm_hwm" ){#bench mark with high water mark // hurdle rate with high water mark
-      if(ror[i]>bm_ror[i] & eop_val[i] > hwm ){
-        if(typus1 == "bm_hwm"){
-          tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf / 100
-        }
-        if(typus2 == "bm_hwm" ){
-          tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf2 / 100
-        }
-        hmw = eop_val
-        #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
-      }
-    }
+    print(fee_val(type=typus1,ror=ror,bm_ror=bm_ror,
+                  eop_val=eop_val, sop_val=sop_val, i=i,
+                  trf=trf, hurd_rate=hurd_rate,hwm=hwm,wm=wm))
+    tariff1[i]=fee_val(type=typus1,ror=ror,bm_ror=bm_ror,
+                       eop_val=eop_val, sop_val=sop_val, i=i,
+                       trf=trf, hurd_rate=hurd_rate,hwm=hwm,wm=wm)
+    print (tariff1)
+    tariff2[i]=fee_val(type=typus2,ror=ror,bm_ror=bm_ror,
+                       eop_val=eop_val, sop_val=sop_val, i=i,
+                       trf=trf2, hurd_rate=hurd_rate,hwm=hwm,wm=wm)
+    print (tariff2)
+    # if (typus1 == "abs_perf" | typus2 == "abs_perf"){ #gain
+    #   if(ror[i]>0 & eop_val[i]>100){
+    #     if(typus1 == "abs_perf"){
+    #       tariff1[i]=((eop_val[i]-100)* trf / 100)
+    #     }else{
+    #       tariff2[i]=((eop_val[i]-100)* trf2 / 100)
+    #       # tariff1[i]=(sop_val[i] * ror[i] * trf / 100)
+    #       # }else{
+    #       # tariff2[i]=(sop_val[i] * ror[i] * trf / 100)
+    #     }
+    #     #AIC * ROR * TRF
+    #   }
+    # }
+    # if(typus1 == "gain" | typus2 == "gain"){#abs outperf
+    #   if(ror[i]>0){
+    #     if(eop_val[i] > sop_val[i]){
+    #       if(typus1 == "gain"){
+    #         tariff1[i]=(eop_val[i]-sop_val[i]) * trf / 100
+    #       }else{
+    #         tariff2[i]=(eop_val[i]-sop_val[i]) * trf2 / 100
+    #       }  
+    #       # GAIN * TRF;
+    #     }
+    #   }
+    # }
+    # if(typus1 == "abs_perf_hwm" | typus2 == "abs_perf_hwm"){#abs outperf
+    #   if(ror[i]>0 & eop_val[i] > hwm){
+    #     if(typus1 == "abs_perf_hwm"){
+    #       tariff1[i]=(eop_val[i]-hwm) * trf / 100
+    #     }else{
+    #       tariff2[i]=(eop_val[i]-hwm) * trf2 / 100
+    #     }
+    #     hwm=eop_val[i]
+    #     # (VAL_EOP - HWM) * TRF;
+    #   }
+    # }
+    # 
+    # if(typus1 == "abs_perf_wm" | typus2 == "abs_perf_wm"){#abs outperf
+    #   if(ror[i]>0 & eop_val[i] > wm ){
+    #     if(typus1 == "abs_perf_wm"){
+    #       tariff1[i]=(eop_val[i]-wm) * trf / 100
+    #     }else{
+    #       tariff2[i]=(eop_val[i]-wm) * trf2 / 100
+    #     }
+    #     # ret_val := (VAL_EOP - WM) * TRF;
+    #   }
+    # }
+    # if(typus1 == "bm" | typus2 == "bm"){#bench mark // hurdle rate
+    #   if(ror[i]>bm_ror[i]){
+    #     if(typus1 == "bm" | typus1 == "hr"){
+    #       tariff1[i]=(ror[i]-bm_ror[i]) * trf / 100
+    #     }
+    #     if(typus2 == "bm" | typus2 == "hr"){
+    #       tariff2[i]=(ror[i]-bm_ror[i]) * trf2 / 100
+    #     }
+    #     #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
+    #   }
+    # }
+    # 
+    # if(typus1 == "hr" | typus2 == "hr"){#bench mark // hurdle rate
+    #   if(ror[i]>hurd_rate){
+    #     if(typus1 == "hr"){
+    #       tariff1[i]=(ror[i]-hurd_rate) * trf / 100
+    #     }
+    #     if(typus2 == "hr"){
+    #       tariff2[i]=(ror[i]-hurd_rate) * trf2 / 100
+    #     }
+    #     #ret_val := AIC * (ROR - L_BMRK_ROR_MARKUP) * TRF;
+    #   }
+    # }
+    # 
+    # if(typus1 == "bm_hwm" | typus2 == "bm_hwm" ){#bench mark with high water mark // hurdle rate with high water mark
+    #   if(ror[i]>bm_ror[i] & eop_val[i] > hwm ){
+    #     if(typus1 == "bm_hwm"){
+    #       tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf / 100
+    #     }
+    #     if(typus2 == "bm_hwm" ){
+    #       tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-hwm) * trf2 / 100
+    #     }
+    #     hmw = eop_val
+    #     #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
+    #   }
+    # }
+    # 
+    # if(typus1 == "hr_hwm" | typus2 == "hr_hwm"){#bench mark with high water mark // hurdle rate with high water mark
+    #   if(ror[i]>hurd_rate & eop_val[i] > hwm ){
+    #     if(typus1 == "hr_hwm"){
+    #       tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf / 100
+    #     }
+    #     if(typus2 == "hr_hwm"){
+    #       tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf2 / 100
+    #     }
+    #     hmw = eop_val
+    #     #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
+    #   }
+    # }
+    # 
+    # if(typus1 == "bm_wm" | typus2 == "bm_wm"){#abs outperf
+    #   if(ror[i]>bm_ror[i] & eop_val[i] > wm ){
+    #     if(typus1 == "bm_wm"){
+    #       tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf / 100
+    #     }
+    #     if(typus2 == "bm_wm"){
+    #       tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf2 / 100
+    #     }
+    #     # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
+    #   }
+    # }
+    # 
+    # if( typus1 == "hr_wm" | typus2 == "hr_wm"){#abs outperf
+    #   if(ror[i]>hurd_rate & eop_val[i] > wm ){
+    #     if(typus1 == "hr_wm"){
+    #       tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf / 100
+    #     }
+    #     if(typus2 == "hr_wm"){
+    #       tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf2 / 100
+    #     }
+    #     # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
+    #   }
+    # }
     
-    if(typus1 == "hr_hwm" | typus2 == "hr_hwm"){#bench mark with high water mark // hurdle rate with high water mark
-      if(ror[i]>hurd_rate & eop_val[i] > hwm ){
-        if(typus1 == "hr_hwm"){
-          tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf / 100
-        }
-        if(typus2 == "hr_hwm"){
-          tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-hwm) * trf2 / 100
-        }
-        hmw = eop_val
-        #ret_val := (ROR - L_BMRK_ROR_MARKUP) * (VAL_EOP - HWM) * TRF;
-      }
-    }
-    
-    if(typus1 == "bm_wm" | typus2 == "bm_wm"){#abs outperf
-      if(ror[i]>bm_ror[i] & eop_val[i] > wm ){
-        if(typus1 == "bm_wm"){
-          tariff1[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf / 100
-        }
-        if(typus2 == "bm_wm"){
-          tariff2[i]=(ror[i]-bm_ror[i])*(eop_val[i]-wm) * trf2 / 100
-        }
-        # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
-      }
-    }
-    
-    if( typus1 == "hr_wm" | typus2 == "hr_wm"){#abs outperf
-      if(ror[i]>hurd_rate & eop_val[i] > wm ){
-        if(typus1 == "hr_wm"){
-          tariff1[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf / 100
-        }
-        if(typus2 == "hr_wm"){
-          tariff2[i]=(ror[i]-hurd_rate)*(eop_val[i]-wm) * trf2 / 100
-        }
-        # ret_val := (ROR -  L_BMRK_ROR_MARKUP) * (VAL_EOP - WM) * TRF;
-      }
-    }
   }
   
   #print(data.frame(per,sop_val,eop_val,ror,tariff))
@@ -250,7 +267,7 @@ simulator <- function(periods = 10,
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-  
+  # print(my_first_func(2,3));
   output$distPlot <- renderPlot({
     # generate bins based on input$bins from ui.R
     x    <- faithful[, 2] 
